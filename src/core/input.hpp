@@ -17,7 +17,7 @@
 #ifndef I_INPUT_INCLUDED_H
 #define I_INPUT_INCLUDED_H
 
-class IInput
+class Input
 {
 public:
 	enum
@@ -380,21 +380,6 @@ public:
 
 	static const int NUM_KEYS = 512;
 	static const int NUM_MOUSEBUTTONS = 256;
-
-	virtual ~IInput() {}
-	virtual void update() = 0;
-	virtual bool getKey(int keyCode) = 0;
-	virtual bool getMouse(int keyCode) = 0;
-
-	virtual int getMouseX() = 0;
-	virtual int getMouseY() = 0;
-	virtual int getMouseDeltaX() = 0;
-	virtual int getMouseDeltaY() = 0;
-
-	// Note: Also can have joystick methods for joystick input!
-
-	virtual void setCursorVisibile(bool value) = 0;
-	virtual void setMousePosition(int x, int y) = 0;
 private:
 };
 
