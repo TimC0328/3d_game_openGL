@@ -17,6 +17,8 @@
 #include "gameEventHandler.hpp"
 #include "core/input.hpp"
 
+#include "ecs/ecsComponent.hpp"
+
 // NOTE: Profiling reveals that in the current instanced rendering system:
 // - Updating the buffer takes more time than
 // - Calculating the transforms which takes more time than
