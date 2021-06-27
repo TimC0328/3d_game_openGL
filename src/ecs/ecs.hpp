@@ -51,5 +51,7 @@ class ECS
             return handleToRawType(handle)->second;
         }
 
+        void removeComponentInternal(uint32 componentID, uint32 index) {}
+
         NULL_COPY_AND_ASSIGN(ECS);
 };
