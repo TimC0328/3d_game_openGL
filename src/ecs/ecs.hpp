@@ -11,7 +11,7 @@ class ECS
         ~ECS();
 
         //Entity methods
-        EntityHandle makeEntity(BaseECSComponent* components, const uint32* componentIDs, size_t numComponents);
+        EntityHandle makeEntity(BaseECSComponent** components, const uint32* componentIDs, size_t numComponents);
         void removeEntity(EntityHandle handle);
 
         //Component methods
@@ -30,16 +30,11 @@ class ECS
         template<class Component>
         Component* getComponent(EntityHandle entity)
         {
-            getComponentInternal(handleToEntity(entity), components[Component::ID],Component::ID);
+            return (Component*)getComponentInternal(handleToEntity(entity), components[Component::ID],Component::ID);
         }
 
         //System methods
-        inline void addSystem(BaseECSSystem& system)
-        {
-            systems.push_back(&system);
-        }
-        void updateSystems(float delta);
-        bool removeSystem(BaseECSSystem& system);
+        void updateSystems(ECSSystemList& systems, float delta);
     private:
         Array<BaseECSSystem*> systems;
         Map<uint32, Array<uint8>> components;
@@ -65,9 +60,9 @@ class ECS
         void addComponentInternal(EntityHandle handle, Array<std::pair<uint32, uint32> >& entity, uint32 componentID, BaseECSComponent* component);
         BaseECSComponent* getComponentInternal(Array<std::pair<uint32, uint32> >& entityComponents, Array<uint8>& array, uint32 componentID);
 
-        void updateSystemWithMultipleComponents(uint32 index, float delta, const Array<uint32>& componentTypes, Array<BaseECSComponent*>& componentParam, Array<Array<uint8>*>& componentArrays);
+        void updateSystemWithMultipleComponents(uint32 index, ECSSystemList& systems, float delta, const Array<uint32>& componentTypes, Array<BaseECSComponent*>& componentParam, Array<Array<uint8>*>& componentArrays);
 
-        uint32 findLeastCommonComponent(const Array<uint32>& componentTypes);
+        uint32 findLeastCommonComponent(const Array<uint32>& componentTypes, const Array<uint32>& componentFlags);
 
         NULL_COPY_AND_ASSIGN(ECS);
 };
