@@ -14,7 +14,7 @@ ECS::~ECS()
         }
     }
 
-    for(uint32 i; i < entities.size(); i++)
+    for(uint32 i = 0; i < entities.size(); i++)
     {
         delete entities[i];
     }
