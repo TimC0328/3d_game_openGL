@@ -9,7 +9,7 @@ class BaseECSSystem
         {
             FLAG_OPTIONAL = 1,
         };
-        BaseECSSystem(const Array<uint32>& componentTypesIn) : componentTypes(componentTypesIn){}
+        BaseECSSystem() {}
         virtual void updateComponents(float delta, BaseECSComponent** components){}
         const Array<uint32>& getComponentTypes()
         {

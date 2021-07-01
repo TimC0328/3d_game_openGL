@@ -22,21 +22,21 @@ ECS::~ECS()
 
 EntityHandle ECS::makeEntity(BaseECSComponent** entityComponents, const uint32* componentIDs, size_t numComponents)
 {
-    std::pair<uint32, Array<std::pair<uint32, uint32> > >* newEntity = new std::pair<uint32, Array<std::pair<uint32, uint32> >>();
-    EntityHandle handle = (EntityHandle)newEntity;
-    for(uint32 i = 0; i < numComponents; i++)
-    {
-        if(BaseECSComponent::isTypeValid(componentIDs[i]))
-        {
-            DEBUG_LOG("ECS", LOG_ERROR, "'%u' is not a valid component type", componentIDs[i]);
-            delete newEntity;
-            return NULL_ENTITY_HANDLE;
-        }
-        addComponentInternal(handle,newEntity->second, componentIDs[i], entityComponents[i]);
-    }
-    newEntity->first = entities.size();
-    entities.push_back(newEntity);
-    return handle;
+	std::pair<uint32, Array<std::pair<uint32, uint32> > >* newEntity = new std::pair<uint32, Array<std::pair<uint32, uint32> > >();
+	EntityHandle handle = (EntityHandle)newEntity;
+	for(uint32 i = 0; i < numComponents; i++) {
+		if(!BaseECSComponent::isTypeValid(componentIDs[i])) {
+			DEBUG_LOG("ECS", LOG_ERROR, "'%u' is not a valid component type.", componentIDs[i]);
+			delete newEntity;
+			return NULL_ENTITY_HANDLE;
+		}
+
+		addComponentInternal(handle, newEntity->second, componentIDs[i], entityComponents[i]);
+	}
+
+	newEntity->first = entities.size();
+	entities.push_back(newEntity);
+	return handle;
 }
 
 void ECS::removeEntity(EntityHandle handle)

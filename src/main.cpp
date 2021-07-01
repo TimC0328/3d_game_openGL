@@ -16,10 +16,44 @@
 
 #include "gameEventHandler.hpp"
 #include "core/input.hpp"
-
-#include "ecs/ecsComponent.hpp"
 #include "ecs/ecs.hpp"
 
+struct TransformComponent : public ECSComponent<TransformComponent>
+{
+    Transform transform;
+};
+
+struct MovementControlComponent : public ECSComponent<MovementControlComponent>
+{
+    Array<std::pair<Vector3f, InputControl*> > movementControls;
+};
+
+class MovementControlSystem : public BaseECSSystem
+{
+    public:
+        MovementControlSystem() : BaseECSSystem()
+        {
+            addComponentType(TransformComponent::ID);
+            addComponentType(MovementControlComponent::ID);
+        }
+
+        virtual void updateComponents(float delta, BaseECSComponent** components)
+        {
+            TransformComponent* transform = (TransformComponent*)components[0];
+            MovementControlComponent* movementControl = (MovementControlComponent*)components[1];
+
+            for(uint32 i = 0; i < movementControl->movementControls.size(); i++)
+            {
+                Vector3f movement = movementControl->movementControls[i].first;
+                InputControl* input = movementControl->movementControls[i].second;
+
+                Vector3f newPos = transform->transform.getTranslation() + movement * input->getAmt() * delta;
+                transform->transform.setTranslation(newPos);
+            }
+        }
+
+    private:
+};
 // NOTE: Profiling reveals that in the current instanced rendering system:
 // - Updating the buffer takes more time than
 // - Calculating the transforms which takes more time than
@@ -78,26 +112,7 @@ static int runApp(Application* app)
 
 	Matrix perspective(Matrix::perspective(Math::toRadians(70.0f/2.0f),
 				4.0f/3.0f, 0.1f, 1000.0f));
-	float amt = 0.0f;
 	Color color(0.0f, 0.15f, 0.3f);
-	float randZ = 20.0f;
-	float randScaleX = randZ * window.getWidth()/(float)window.getHeight();
-	float randScaleY = randZ;
-
-	uint32 numInstances = 1;
-	Matrix transformMatrix(Matrix::identity());
-	Transform transform;
-	Array<Matrix> transformMatrixArray;
-	Array<Matrix> transformMatrixBaseArray;
-	for(uint32 i = 0; i < numInstances; i++) {
-		transformMatrixArray.push_back(Matrix::identity());
-		transform.setTranslation(Vector3f(0.0f, 0.0f,
-//					(Math::randf() * randScaleX)-randScaleX/2.0f,
-//					(Math::randf() * randScaleY)-randScaleY/2.0f,
-					randZ));
-		transformMatrixBaseArray.push_back(transform.toMatrix());
-	}
-	transform.setTranslation(Vector3f(0.0f,0.0f,0.0f));
 
 	RenderDevice::DrawParams drawParams;
 	drawParams.primitiveType = RenderDevice::PRIMITIVE_TRIANGLES;
@@ -123,6 +138,23 @@ static int runApp(Application* app)
 	float xPos = 0.0f;
 	float yPos = 0.0f;
 
+	ECS ecs;
+	//Create components
+	TransformComponent transformComponent;
+	transformComponent.transform.setTranslation(Vector3f(0.0f, 0.0f, 20.0f));
+
+	MovementControlComponent movementControl;
+	movementControl.movementControls.push_back(std::make_pair(Vector3f(1.0f, 0.0f, 0.0f) * 10.0f, &horizontal));
+	movementControl.movementControls.push_back(std::make_pair(Vector3f(0.0f, 1.0f, 0.0f) * 10.0f, &vertical));
+
+	//Create entity
+	EntityHandle entity = ecs.makeEntity(transformComponent, movementControl);
+
+	//Create the systems
+    MovementControlSystem MovementControlSystem;
+    ECSSystemList mainSystems;
+    mainSystems.addSystem(MovementControlSystem);
+
 	uint32 fps = 0;
 	double lastTime = Time::getTime();
 	double fpsTimeCounter = 0.0;
@@ -147,16 +179,10 @@ static int runApp(Application* app)
 		while(updateTimer >= frameTime) {
 			app->processMessages(frameTime, eventHandler);
 			// Begin scene update
-			xPos += 10.0f*frameTime*horizontal.getAmt();
-			yPos += 10.0f*frameTime*vertical.getAmt();
-			transform.setRotation(Quaternion(Vector3f(1.0f, 1.0f, 1.0f).normalized(), amt*10.0f/11.0f));
-			transform.setTranslation(Vector3f(xPos, yPos, 0.0f));
-			for(uint32 i = 0; i < transformMatrixArray.size(); i++) {
-				transformMatrixArray[i] = (perspective * transformMatrixBaseArray[i] * transform.toMatrix());
-			}
-			vertexArray.updateBuffer(4, &transformMatrixArray[0],
-					transformMatrixArray.size() * sizeof(Matrix));
-			amt += (float)frameTime/2.0f;
+			ecs.updateSystems(mainSystems, frameTime);
+			Transform& workingTransform = ecs.getComponent<TransformComponent>(entity)->transform;
+            Matrix transformMatrix = perspective *  workingTransform.toMatrix();
+			vertexArray.updateBuffer(4, &transformMatrix, sizeof(Matrix));
 			// End scene update
 
 			updateTimer -= frameTime;
@@ -166,7 +192,7 @@ static int runApp(Application* app)
 		if(shouldRender) {
 			// Begin scene render
 			context.clear(color, true);
-			context.draw(shader, vertexArray, drawParams, numInstances);
+			context.draw(shader, vertexArray, drawParams, 1);
 			// End scene render
 
 			window.present();
