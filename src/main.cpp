@@ -120,6 +120,8 @@ static int runApp(Application* app)
 	Array<MaterialSpec> modelMaterials;
 	ModelLoader::loadModels("./res/models/monkey3.obj", models,
 			modelMaterialIndices, modelMaterials);
+	ModelLoader::loadModels("./res/models/tinyCube.obj", models,
+			modelMaterialIndices, modelMaterials);
 //	IndexedModel model;
 //	model.allocateElement(3); // Positions
 //	model.allocateElement(2); // TexCoords
@@ -137,6 +139,7 @@ static int runApp(Application* app)
 //	model.addIndices3i(0, 1, 2);
 
 	VertexArray vertexArray(device, models[0], RenderDevice::USAGE_STATIC_DRAW);
+	VertexArray vertexArray2(device, models[1], RenderDevice::USAGE_STATIC_DRAW);
 	Sampler sampler(device, RenderDevice::FILTER_LINEAR_MIPMAP_LINEAR);
 //	ArrayBitmap bitmap;
 //	bitmap.set(0,0, Color::WHITE.toInt());
@@ -200,11 +203,13 @@ static int runApp(Application* app)
 
 	RenderableMeshComponent renderableMesh;
 	renderableMesh.vertexArray = &vertexArray;
-	renderableMesh.texture = &texture2;
+	renderableMesh.texture = &texture;
 
 	//Create entities
 	ecs.makeEntity(transformComponent, movementControl, renderableMesh);
-	for(uint32 i = 0; i < 10; i++)
+    renderableMesh.vertexArray = &vertexArray2;
+	renderableMesh.texture = &texture2;
+	for(uint32 i = 0; i < 100; i++)
 	{
         transformComponent.transform.setTranslation(Vector3f(Math::randf()*10.0f-5.0f, Math::randf()*10.0f-5.0f, Math::randf()*20.0f));
         ecs.makeEntity(transformComponent, renderableMesh);
