@@ -151,6 +151,11 @@ static int runApp(Application* app)
 		return 1;
 	}
 	Texture texture(device, ddsTexture);
+	if(!ddsTexture.load("./res/textures/water.dds")) {
+		DEBUG_LOG("Main", LOG_ERROR, "Could not load texture!");
+		return 1;
+	}
+	Texture texture2(device, ddsTexture);
 
 	String shaderText;
 	StringFuncs::loadTextFileWithIncludes(shaderText, "./res/shaders/basicShader.glsl", "#include");
@@ -195,7 +200,7 @@ static int runApp(Application* app)
 
 	RenderableMeshComponent renderableMesh;
 	renderableMesh.vertexArray = &vertexArray;
-	renderableMesh.texture = &texture;
+	renderableMesh.texture = &texture2;
 
 	//Create entities
 	ecs.makeEntity(transformComponent, movementControl, renderableMesh);
