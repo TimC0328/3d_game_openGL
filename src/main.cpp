@@ -28,6 +28,12 @@ struct MovementControlComponent : public ECSComponent<MovementControlComponent>
     Array<std::pair<Vector3f, InputControl*> > movementControls;
 };
 
+struct RenderableMeshComponent : public ECSComponent<RenderableMeshComponent>
+{
+    VertexArray* vertexArray = nullptr;
+    Texture* texture = nullptr;
+};
+
 class MovementControlSystem : public BaseECSSystem
 {
     public:
@@ -51,8 +57,6 @@ class MovementControlSystem : public BaseECSSystem
                 transform->transform.setTranslation(newPos);
             }
         }
-
-    private:
 };
 
 class GameRenderContext : public RenderContext
@@ -77,6 +81,26 @@ class GameRenderContext : public RenderContext
         Sampler& sampler;
         Matrix perspective;
         Texture* currentTexture;
+};
+
+class RenderableMeshSystem : public BaseECSSystem
+{
+    public:
+        RenderableMeshSystem(GameRenderContext& contextIn) : BaseECSSystem(), context(contextIn)
+        {
+            addComponentType(TransformComponent::ID);
+            addComponentType(RenderableMeshComponent::ID);
+        }
+
+        virtual void updateComponents(float delta, BaseECSComponent** components)
+        {
+            TransformComponent* transform = (TransformComponent*)components[0];
+            RenderableMeshComponent* mesh = (RenderableMeshComponent*)components[1];
+
+            context.renderMesh(*mesh->vertexArray, *mesh->texture, transform->transform.toMatrix());
+        }
+    private:
+        GameRenderContext& context;
 };
 
 // NOTE: Profiling reveals that in the current instanced rendering system:
@@ -160,9 +184,6 @@ static int runApp(Application* app)
 	eventHandler.addKeyControl(Input::KEY_UP, vertical, 1.0f);
 	eventHandler.addKeyControl(Input::KEY_DOWN, vertical, -1.0f);
 
-	float xPos = 0.0f;
-	float yPos = 0.0f;
-
 	ECS ecs;
 	//Create components
 	TransformComponent transformComponent;
@@ -172,13 +193,25 @@ static int runApp(Application* app)
 	movementControl.movementControls.push_back(std::make_pair(Vector3f(1.0f, 0.0f, 0.0f) * 10.0f, &horizontal));
 	movementControl.movementControls.push_back(std::make_pair(Vector3f(0.0f, 1.0f, 0.0f) * 10.0f, &vertical));
 
-	//Create entity
-	EntityHandle entity = ecs.makeEntity(transformComponent, movementControl);
+	RenderableMeshComponent renderableMesh;
+	renderableMesh.vertexArray = &vertexArray;
+	renderableMesh.texture = &texture;
+
+	//Create entities
+	ecs.makeEntity(transformComponent, movementControl, renderableMesh);
+	for(uint32 i = 0; i < 10; i++)
+	{
+        transformComponent.transform.setTranslation(Vector3f(Math::randf()*10.0f-5.0f, Math::randf()*10.0f-5.0f, Math::randf()*20.0f));
+        ecs.makeEntity(transformComponent, renderableMesh);
+	}
 
 	//Create the systems
     MovementControlSystem MovementControlSystem;
+    RenderableMeshSystem renderableMeshSystem(gameRenderContext);
     ECSSystemList mainSystems;
+    ECSSystemList renderingPipeline;
     mainSystems.addSystem(MovementControlSystem);
+    renderingPipeline.addSystem(renderableMeshSystem);
 
 	uint32 fps = 0;
 	double lastTime = Time::getTime();
@@ -205,9 +238,8 @@ static int runApp(Application* app)
 			app->processMessages(frameTime, eventHandler);
 			// Begin scene update
 			ecs.updateSystems(mainSystems, frameTime);
-			Transform& workingTransform = ecs.getComponent<TransformComponent>(entity)->transform;
-            Matrix transformMatrix = perspective *  workingTransform.toMatrix();
-//			vertexArray.updateBuffer(4, &transformMatrix, sizeof(Matrix));
+//			Transform& workingTransform = ecs.getComponent<TransformComponent>(entity)->transform;
+//            Matrix transformMatrix = perspective *  workingTransform.toMatrix();
 			// End scene update
 
 			updateTimer -= frameTime;
@@ -217,7 +249,7 @@ static int runApp(Application* app)
 		if(shouldRender) {
 			// Begin scene render
 			gameRenderContext.clear(color, true);
-//			context.draw(shader, vertexArray, drawParams, 1);
+			ecs.updateSystems(renderingPipeline, frameTime);
 			// End scene render
 
 			window.present();
