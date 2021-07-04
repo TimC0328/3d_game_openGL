@@ -61,26 +61,44 @@ class MovementControlSystem : public BaseECSSystem
 
 class GameRenderContext : public RenderContext
 {
-    public:
-        GameRenderContext(RenderDevice& deviceIn, RenderTarget& targetIn, RenderDevice::DrawParams& drawParamsIn,
-                Shader& shaderIn, Sampler& samplerIn, const Matrix& perspectiveIn) : RenderContext(deviceIn, targetIn),
-            drawParams(drawParamsIn), shader(shaderIn), sampler(samplerIn), perspective(perspectiveIn), currentTexture(nullptr) {}
+public:
+	GameRenderContext(RenderDevice& deviceIn, RenderTarget& targetIn, RenderDevice::DrawParams& drawParamsIn,
+			Shader& shaderIn, Sampler& samplerIn, const Matrix& perspectiveIn) : RenderContext(deviceIn, targetIn),
+		drawParams(drawParamsIn), shader(shaderIn), sampler(samplerIn), perspective(perspectiveIn) {}
 
-        void renderMesh(VertexArray& vertexArray, Texture& texture, Matrix transformIn)
-        {
-            if(&texture != currentTexture)
-                shader.setSampler("diffuse", texture, sampler, 0);
+	void renderMesh(VertexArray& vertexArray, Texture& texture, const Matrix& transformIn)
+	{
+		meshRenderBuffer[std::make_pair(&vertexArray, &texture)].push_back(perspective * transformIn);
+	}
 
-            Matrix finalTransform = perspective * transformIn;
-			vertexArray.updateBuffer(4, &finalTransform, sizeof(Matrix));
-            this->draw(shader, vertexArray, drawParams, 1);
-        }
-    private:
-        RenderDevice::DrawParams& drawParams;
-        Shader& shader;
-        Sampler& sampler;
-        Matrix perspective;
-        Texture* currentTexture;
+	void flush()
+	{
+		Texture* currentTexture = nullptr;
+		for(Map<std::pair<VertexArray*, Texture*>, Array<Matrix> >::iterator it
+				= meshRenderBuffer.begin(); it != meshRenderBuffer.end(); ++it) {
+			VertexArray* vertexArray = it->first.first;
+			Texture* texture = it->first.second;
+			Matrix* transforms = &it->second[0];
+			size_t numTransforms = it->second.size();
+
+			if(numTransforms == 0) {
+				continue;
+			}
+
+			if(texture != currentTexture) {
+				shader.setSampler("diffuse", *texture, sampler, 0);
+			}
+			vertexArray->updateBuffer(4, transforms, numTransforms*sizeof(Matrix));
+			this->draw(shader, *vertexArray, drawParams, numTransforms);
+			it->second.clear();
+		}
+	}
+private:
+	RenderDevice::DrawParams& drawParams;
+	Shader& shader;
+	Sampler& sampler;
+	Matrix perspective;
+	Map<std::pair<VertexArray*, Texture*>, Array<Matrix> > meshRenderBuffer;
 };
 
 class RenderableMeshSystem : public BaseECSSystem
@@ -260,6 +278,7 @@ static int runApp(Application* app)
 			// Begin scene render
 			gameRenderContext.clear(color, true);
 			ecs.updateSystems(renderingPipeline, frameTime);
+			gameRenderContext.flush();
 			// End scene render
 
 			window.present();
